@@ -25,6 +25,7 @@ from oslo.i18n import _contextualmessage
 from oslo.i18n import _lazy
 from oslo.i18n import _locale
 from oslo.i18n import _message
+from oslo.i18n import _pluralmessage
 
 
 __all__ = [
@@ -110,6 +111,25 @@ class TranslatorFactory(object):
             return s
         return f
 
+    def _make_plural_translation_func(self, domain=None):
+        "Return a plural translation function ready for use with messages"
+        if domain is None:
+            domain = self.domain
+        t = gettext.translation(domain,
+                                localedir=self.localedir,
+                                fallback=True)
+        # Use the appropriate method of the translation object based
+        # on the python version.
+        m = t.ngettext if six.PY3 else t.ungettext
+
+        def f(msgsingle, msgplural, msgcount):
+            """oslo.i18n.gettextutils plural translation function."""
+            if _lazy.USE_LAZY:
+                return _pluralmessage.PluralMessage(
+                    msgsingle, msgplural, msgcount, domain=domain)
+            return m(msgsingle, msgplural, msgcount)
+        return f
+
     @property
     def primary(self):
         "The default translation function."
@@ -119,6 +139,11 @@ class TranslatorFactory(object):
     def contextual_form(self):
         "The contextual translation function."
         return self._make_contextual_translation_func()
+
+    @property
+    def plural_form(self):
+        "The plural translation function."
+        return self._make_plural_translation_func()
 
     def _make_log_translation_func(self, level):
         return self._make_translation_func(self.domain + '-log-' + level)
