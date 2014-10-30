@@ -49,6 +49,8 @@ def install(domain):
     from six import moves
     tf = _factory.TranslatorFactory(domain)
     moves.builtins.__dict__['_'] = tf.primary
+    moves.builtins.__dict__['_C'] = tf.contextual_form
+    moves.builtins.__dict__['_P'] = tf.plural_form
 
 
 _AVAILABLE_LANGUAGES = {}

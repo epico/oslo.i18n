@@ -26,6 +26,9 @@ import six
 from oslo.i18n import _locale
 from oslo.i18n import _translate
 
+# magic gettext number to separate context from message
+CONTEXT_SEPARATOR = "\x04"
+
 
 class Message(six.text_type):
     """A Message object is a unicode object that can be translated.
@@ -99,10 +102,41 @@ class Message(six.text_type):
                                    localedir=locale_dir,
                                    languages=[desired_locale],
                                    fallback=True)
-        translator = lang.gettext if six.PY3 else lang.ugettext
 
-        translated_message = translator(msgid)
-        return translated_message
+        # Primary translation function
+        if isinstance(msgid, str) or isinstance(msgid, six.text_type):
+            translator = lang.gettext if six.PY3 else lang.ugettext
+
+            translated_message = translator(msgid)
+            return translated_message
+
+        # Contextual translation function
+        if isinstance(msgid, tuple) and 2 == len(msgid):
+            (msgctx, msgtxt) = msgid
+            translator = lang.gettext if six.PY3 else lang.ugettext
+
+            msg_with_ctx = "%s%s%s" % (msgctx, CONTEXT_SEPARATOR, msgtxt)
+            translated_message = translator(msg_with_ctx)
+
+            if CONTEXT_SEPARATOR in translated_message:
+                # Translation not found
+                translated_message = msgtxt
+
+            return translated_message
+
+        # Plural translation function
+        if isinstance(msgid, tuple) and 3 == len(msgid):
+            (msgsingle, msgplural, msgcount) = msgid
+            translator = lang.ngettext if six.PY3 else lang.ungettext
+
+            translated_message = translator(msgsingle, msgplural, msgcount)
+            return translated_message
+
+        # Reserved for contextual and plural translation function
+        if isinstance(msgid, tuple) and 4 == len(msgid):
+            assert False, "Unimplemented."
+
+        assert False, "Unknown msgid type."
 
     def __mod__(self, other):
         # When we mod a Message we want the actual operation to be performed
